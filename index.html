@@ -1,1 +1,503 @@
-PLACEHOLDER
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Miami-Dade County Environmental & Engineering Positions Dashboard</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
+<style>
+  :root {
+    --mdc-blue: #0057b8;
+    --mdc-green: #00a651;
+    --mdc-dark: #1a1a2e;
+    --border: #e0e0e0;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    background: linear-gradient(135deg, #f5f7fa 0%, #e4e8f0 100%);
+    color: var(--mdc-dark);
+    line-height: 1.6;
+  }
+  header {
+    background: linear-gradient(135deg, var(--mdc-blue) 0%, #003d82 100%);
+    color: white;
+    padding: 1.75rem 2rem 1.25rem;
+    box-shadow: 0 4px 20px rgba(0,87,184,0.3);
+  }
+  header h1 { font-size: 1.75rem; font-weight: 700; }
+  .container { max-width: 1480px; margin: 0 auto; padding: 1.25rem; }
+  .chart-card {
+    background: white; padding: 1.1rem; border-radius: 12px;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.08); margin-bottom: 1.25rem;
+  }
+  .chart-card h3 { margin-bottom: 0.75rem; font-size: 1.05rem; color: var(--mdc-dark); }
+  .table-container {
+    background: white; border-radius: 12px; box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+  }
+  table { width: 100%; border-collapse: collapse; min-width: 700px; }
+  th, td { padding: 0.75rem 0.85rem; text-align: left; border-bottom: 1px solid var(--border); font-size: 0.9rem; }
+  th {
+    background: #f0f4f8; font-weight: 600; cursor: pointer; user-select: none;
+    position: sticky; top: 0; z-index: 10;
+  }
+  th:hover { background: #e4eaf2; }
+  th.sorted-asc::after { content: ' \u25B2'; font-size: 0.65rem; }
+  th.sorted-desc::after { content: ' \u25BC'; font-size: 0.65rem; }
+  tr:hover { background: #f8fbff; }
+  tr.highlighted { background: #fff3cd !important; }
+  tr.highlighted:hover { background: #ffe69c !important; }
+  .salary { font-family: 'SF Mono', Consolas, monospace; font-weight: 600; }
+  .min { color: #d35400; }
+  .max { color: #27ae60; }
+  .btn-small {
+    background: var(--mdc-blue); color: white; border: none; padding: 0.3rem 0.6rem;
+    border-radius: 6px; cursor: pointer; font-size: 0.75rem; margin-right: 0.3rem;
+  }
+  .btn-small:hover { background: #003d82; }
+  .btn-hide { background: #dc3545; }
+  .btn-hide:hover { background: #b02a37; }
+  .detail-row { display: none; background: #fafbfc; }
+  .detail-row.show { display: table-row; }
+  .detail-content { padding: 0.9rem 1.25rem; font-size: 0.88rem; }
+  .detail-content h4 { margin-bottom: 0.4rem; color: var(--mdc-blue); font-size: 0.95rem; }
+  .footer { text-align: center; padding: 1.75rem; color: #666; font-size: 0.82rem; }
+  .compare-section {
+    background: white; padding: 1.1rem; border-radius: 12px; margin-bottom: 1.25rem;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+  }
+  .compare-selects { display: flex; gap: 0.75rem; flex-wrap: wrap; margin-bottom: 0.75rem; align-items: center; }
+  .compare-result { display: grid; grid-template-columns: 1fr 1fr; gap: 0.9rem; }
+  @media (max-width: 750px) { .compare-result { grid-template-columns: 1fr; } }
+  .compare-card { padding: 0.9rem; border: 1px solid var(--border); border-radius: 8px; background: #fafcff; }
+</style>
+</head>
+<body>
+<header>
+  <div class="container">
+    <h1>Miami-Dade County Positions Dashboard</h1>
+  </div>
+</header>
+
+<div class="container">
+  <div class="chart-card">
+    <h3>Individual Range Bars</h3>
+    <canvas id="mainVizChart"></canvas>
+  </div>
+
+  <div class="compare-section">
+    <h3 style="margin-bottom:0.75rem;">Compare Any Two Positions</h3>
+    <div class="compare-selects">
+      <select id="compare1"><option value="">Select Position 1</option></select>
+      <select id="compare2"><option value="">Select Position 2</option></select>
+      <button id="clearCompare" class="secondary">Clear</button>
+    </div>
+    <div class="compare-result" id="compareResult"></div>
+    <div id="compareChartContainer" style="margin-top:1rem; display:none; height:160px; max-height:160px; overflow:hidden;">
+      <h4 style="margin-bottom:0.5rem; font-size:0.95rem;">Range Comparison (Selected Positions)</h4>
+      <canvas id="compareChart"></canvas>
+    </div>
+  </div>
+
+  <div class="table-container">
+    <table id="jobsTable">
+      <thead>
+        <tr>
+          <th></th>
+          <th data-sort="code">Job Code</th>
+          <th data-sort="title">Job Title</th>
+          <th data-sort="min">Min Annual</th>
+          <th data-sort="max">Max Annual</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody id="tableBody"></tbody>
+    </table>
+  </div>
+</div>
+
+<div style="text-align:center; padding:1.5rem 1rem 2rem; background:#f0f4f8;">
+  <button id="hideEngineersBtn" class="secondary" style="margin-right:0.75rem;">Hide All Engineer Positions</button>
+  <button id="hideLicensedBtn" class="secondary" style="margin-right:0.75rem;">Hide All Licensed Positions</button>
+  <button id="unhideAllBtn" class="secondary">Unhide All Positions</button>
+</div>
+
+<footer class="footer">
+  Data compiled from Miami-Dade County pay schedules and official job postings (DERM / RER / public works). Salaries are annual base ranges. Additional PE/PG supplements may apply (~$12,500/yr). Hidden positions can be restored with "Unhide All Positions".
+</footer>
+
+<script>
+const jobs = [
+  { code: "001554", title: "Environmental Res Proj Sup", category: "mgmt", min: 70552.84, max: 123798.92,
+    description: "Advanced professional, administrative and supervisory work in the management of environmental programs for the Department of Environmental Resources Management. Employees in this class are responsible for supervising and implementing environmental programs, ensuring compliance with the environmental Code for development orders, and coordinating technical reviews related to water/sewer connections, wellfield protection, and site rehabilitation.",
+    qualifications: "Bachelor's degree in Biology, Chemistry, Engineering, Geology, Hydrology, Environmental Science or related field. Two years of professional experience in an environmental regulatory agency or two years of professional administrative experience involving environmental policies or issues (grants, project management, enforcement, etc.). Must possess a driver's license.",
+    notes: "Liaison role coordinating among DERM, RER, and other departments on site rehabilitation, permitting, and compliance. Involves project management of due diligence, scopes of work, and technical document review for development projects." },
+  { code: "001522", title: "Hydrogeologist 3", category: "geo", min: 74012.24, max: 129605.56,
+    description: "Supervisory geo-hydrological work with administrative responsibility in the conservation and management of water resources in an environmental resource management program. Responsible for planning and supervising hydrogeological investigations.",
+    qualifications: "Bachelor's degree in Geology, Hydrology, Hydrogeology, Environmental Engineering, Toxicology, Environmental Science or related field. Two years of experience in groundwater modeling and/or environmental impact evaluation or site-specific risk assessment.",
+    notes: "DERM / Environmental Resources focus. Key role in groundwater resource protection for Miami-Dade." },
+  { code: "000832", title: "Spc Projects Administrator 2", category: "mgmt", min: 74794.53, max: 130594.28,
+    description: "Advanced and responsible professional work with supervisory responsibility managing a county-wide program or a major program or function in a county department or agency. Employees are responsible for managing the planning, research, design, development and evaluation of programs.",
+    qualifications: "Bachelor's degree. Four years of administrative experience, to include supervisory experience. Additional experience may substitute for education.",
+    notes: "Flexible classification used across departments (DERM, Solid Waste, Aviation, etc.) for specialized program administration." },
+  { code: "001551", title: "RER Env Hearings Coordinator", category: "plans", min: 75790.51, max: 129901.28,
+    description: "Coordinates environmental hearings and related processes within Regulatory & Economic Resources. Supports scheduling, preparation, and coordination of Environmental Quality Control Board (EQCB) or similar regulatory hearings involving environmental permits, violations, or appeals.",
+    qualifications: "Bachelor's degree preferred. Experience in environmental regulation, administrative hearings, or related public-sector coordination.",
+    notes: "Supports RER's environmental permitting and enforcement processes. Involves coordination with staff, applicants, and hearing bodies." },
+  { code: "001021", title: "Engineer 2", category: "eng", min: 77808.48, max: 135857.18,
+    description: "Advanced professional civil engineering work with supervisory responsibility in the planning, design, construction, inspection and maintenance of a variety of public works facilities. Employees typically serve as project leads.",
+    qualifications: "Bachelor's degree in Engineering. Two years of engineering experience. Florida PE license or equivalent may be required or preferred depending on assignment.",
+    notes: "Common in Transportation & Public Works and other infrastructure departments. Involves design and project management of public facilities." },
+  { code: "001552", title: "Sr Env Plans Review Inspector", category: "plans", min: 77808.48, max: 135857.18,
+    description: "Senior-level inspection and review of environmental plans and applications for compliance with Miami-Dade County environmental codes (including Chapter 24), wetlands protection, water quality standards, and related regulations. Conducts detailed plan reviews and field verification.",
+    qualifications: "Relevant degree in environmental science, engineering, geology, or related field. Experience in environmental plans review, permitting, or inspection.",
+    notes: "Works within RER environmental permitting processes. Ensures development and construction proposals meet environmental standards before approval." },
+  { code: "001533", title: "Geologist", category: "geo", min: 81382.83, max: 142218.23,
+    description: "Performs chemical and physical analyses of water samples; determines water quality characteristics; conducts field and laboratory analyses of geohydrologic factors related to waste disposal; studies interactions between surface and groundwater.",
+    qualifications: "Bachelor's Degree in Geology, Hydrogeology or related field. Minimum of 3 years of experience in groundwater modeling and/or evaluation of environmental impact, aquifer characterization, geological formations, or stratigraphic profiles at contaminated sites.",
+    notes: "Regulatory & Economic Resources / DERM. Supports contaminated site evaluation and water quality protection." },
+  { code: "001596", title: "Mgr DERM Environmental Sect", category: "mgmt", min: 81422.15, max: 140115.77,
+    description: "Section manager within the Department of Environmental Resources Management responsible for overseeing environmental monitoring, assessment, or regulatory functions protecting Miami-Dade's air, water, and soil quality.",
+    qualifications: "Typically requires advanced degree or significant experience in environmental science/management plus supervisory experience.",
+    notes: "DERM leadership role. Part of the organizational structure protecting Biscayne Bay, drinking water supply, and natural resources." },
+  { code: "001564", title: "Mgr Rer Environmental Sect", category: "mgmt", min: 81422.15, max: 140115.77,
+    description: "Section manager in Regulatory & Economic Resources (RER) environmental functions. Oversees environmental permitting, monitoring, or restoration programs.",
+    qualifications: "Professional experience in environmental management with supervisory responsibilities.",
+    notes: "RER houses many former DERM functions related to building, permitting, and environmental review." },
+  { code: "000892", title: "Strategic Initiatives Manager", category: "mgmt", min: 81422.15, max: 140115.77,
+    description: "Manages strategic programs and initiatives across departments. Responsible for planning, coordination, and implementation of county-wide or major departmental strategic efforts.",
+    qualifications: "Bachelor's or higher with significant professional administrative and leadership experience.",
+    notes: "Cross-functional role supporting organizational priorities." },
+  { code: "001553", title: "Evn Plans Review Sup", category: "plans", min: 85398.31, max: 148917.99,
+    description: "Supervises environmental plans review inspectors and staff. Oversees the review process for environmental permits, development applications, and compliance with environmental codes. Ensures timely and accurate plan reviews and coordinates with other RER sections and applicants.",
+    qualifications: "Degree in environmental science, engineering, or related field. Substantial experience in environmental plans review, permitting, and supervision.",
+    notes: "Supervisory role in RER's environmental permitting and plans review operations. Critical for processing Class permits, wetland reviews, and development compliance." },
+  { code: "001022", title: "Engineer 3", category: "eng", min: 89631.29, max: 156062.25,
+    description: "Supervisory professional civil engineering work with administrative responsibility in the planning, design, construction, maintenance and operation of varied public works facilities. Typically supervises other engineers and technical staff.",
+    qualifications: "Bachelor's in Engineering. Significant experience (often 5+ years). Florida PE license preferred or required for certain duties.",
+    notes: "Higher-level engineering supervision in public works, transportation, water/sewer, or environmental infrastructure." },
+  { code: "001565", title: "Senior Mgr Rer Env Sect", category: "mgmt", min: 92945.86, max: 151296.07,
+    description: "Senior section manager in RER environmental programs. Provides high-level oversight of environmental monitoring, restoration, or regulatory sections.",
+    qualifications: "Extensive managerial experience in environmental resource management.",
+    notes: "Senior leadership within Regulatory & Economic Resources environmental functions." },
+  { code: "001050", title: "Professional Engineer", category: "eng", min: 92945.86, max: 151296.07,
+    description: "Advanced responsible professional engineering work for Miami-Dade County departments and agencies. Employees perform professional engineering duties requiring registration as a Professional Engineer. Involves design review, sealing of plans, and technical authority.",
+    qualifications: "Bachelor's degree in Engineering. Must possess State of Florida Professional Engineer license. Minimum of three years of professional engineering experience including design.",
+    notes: "Eligible for PE pay supplement (~$12,500 annually). Critical role for signing and sealing engineering documents." },
+  { code: "001524", title: "Professional Geologist", category: "geo", min: 92945.86, max: 151296.07,
+    description: "Reviews geological information and reports pertaining to contaminated site rehabilitation. Supervises staff reviewers, signs and seals site rehabilitation orders. Evaluates environmental impact, aquifer characterization, fate and transport.",
+    qualifications: "Bachelor's in Geology or related science. State of Florida Professional Geologist license. 3-5 years experience in environmental assessment and hydrogeology.",
+    notes: "Key technical authority in DERM/RER for site rehabilitation decisions under Chapter 62-780 FAC and Chapter 24 Miami-Dade Code. PE/PG supplement eligible." },
+  { code: "001051", title: "Senior Professional Engineer", category: "eng", min: 99785.95, max: 163629.72,
+    description: "Advanced professional and supervisory engineering work with administrative responsibility for Miami-Dade County departments and agencies. Performs professional engineering duties requiring PE registration at a senior level.",
+    qualifications: "Florida Professional Engineer license. Substantial professional engineering experience (typically 4-7+ years).",
+    notes: "Senior PE role with greater administrative and supervisory scope. Eligible for PE supplement." },
+  { code: "001528", title: "Senior Professional Geologist", category: "geo", min: 99785.95, max: 163629.72,
+    description: "Provides supervision and senior technical oversight of Professional Geologists and environmental staff. Reviews complex site rehabilitation cases. Certifies by signature and seal that sites meet rehabilitation requirements.",
+    qualifications: "Bachelor's in Geology/Hydrogeology. Florida PG license. 3-6 years experience in groundwater modeling, aquifer characterization, and environmental impact evaluation.",
+    notes: "Senior technical authority for contaminated site decisions protecting drinking water supply and public health. Eligible for PG supplement." },
+  { code: "001523", title: "Senior Scientist Hydrology", category: "geo", min: 99785.95, max: 163629.72,
+    description: "Senior-level scientific work in hydrology. Responsible for advanced analysis, modeling, and oversight of hydrological and hydrogeological programs supporting environmental resource management.",
+    qualifications: "Advanced degree preferred. Extensive experience in hydrology/hydrogeology. Professional licensure often preferred.",
+    notes: "High-level scientific role in water resources and environmental monitoring." },
+  { code: "001572", title: "Env Site Restoration Mgr", category: "mgmt", min: 107295.91, max: 177119.99,
+    description: "Manages Senior Professional Geologists, Professional Geologists, Hydrogeologists, and Environmental Resources Project Supervisors working on complex cleanup and site rehabilitation of petroleum contaminated sites. Renders technically sound rehabilitation decisions and No Further Action determinations.",
+    qualifications: "Bachelor's in Environmental Science, Geology, Engineering or related field. Must possess Florida PG or PE license. Minimum of four years of managerial and/or administrative experience in environmental resource management.",
+    notes: "Reports to Environmental Monitoring and Evaluation Section. Expertise required in Chapter 62-780 FAC and Chapter 24. Highest salary range among listed positions. Protects drinking water from contamination including PFAS and salt intrusion." },
+  { code: "0015XX", title: "RER Env Development Review Coordinator", category: "mgmt", min: 81422.15, max: 140115.77,
+    description: "Coordinates environmental development review processes within Regulatory & Economic Resources. Oversees and facilitates the review of development applications for environmental compliance, coordinating technical reviews across RER, DERM, and related sections for initial and intermediate development orders.",
+    qualifications: "Bachelor's degree in environmental science, engineering, geology, planning or related field preferred. Experience in environmental regulatory review, development permitting, or project coordination within a county or municipal agency.",
+    notes: "Full-time regular position, exempt from classified service. Salary range aligns with section manager level roles in RER environmental functions. Focuses on streamlining and coordinating environmental aspects of land development review." }
+];
+
+jobs.forEach(j => { j.mid = Math.round((j.min + j.max) / 2); j.range = j.max - j.min; j.hidden = false; });
+
+let filtered = [...jobs];
+let currentSort = { key: 'min', dir: 1 };
+let mainVizChart, compareChart;
+
+function formatMoney(n) {
+  return '$' + Math.round(n).toLocaleString('en-US');
+}
+
+function renderTable() {
+  const tbody = document.getElementById('tableBody');
+  const visible = filtered.filter(j => !j.hidden);
+  tbody.innerHTML = visible.map(j => {
+    const realIdx = jobs.findIndex(x => x.code === j.code);
+    const isHighlighted = j.highlighted || false;
+    return `
+    <tr class="${isHighlighted ? 'highlighted' : ''}">
+      <td><input type="checkbox" class="highlight-check" data-code="${j.code}" ${isHighlighted ? 'checked' : ''} /></td>
+      <td><strong>${j.code}</strong></td>
+      <td>${j.title}</td>
+      <td class="salary min">${formatMoney(j.min)}</td>
+      <td class="salary max">${formatMoney(j.max)}</td>
+      <td>
+        <button class="btn-small btn-hide" onclick="hideJob('${j.code}')">− Hide</button>
+      </td>
+    </tr>
+    <tr class="detail-row" id="detail-${realIdx}">
+      <td colspan="6">
+        <div class="detail-content">
+          <h4>Nature of Work</h4>
+          <p>${j.description}</p>
+          <h4 style="margin-top:0.6rem">Minimum Qualifications</h4>
+          <p>${j.qualifications}</p>
+          <h4 style="margin-top:0.6rem">Notes</h4>
+          <p>${j.notes}</p>
+        </div>
+      </td>
+    </tr>`;
+  }).join('');
+
+  document.querySelectorAll('.highlight-check').forEach(cb => {
+    cb.addEventListener('change', e => {
+      const code = e.target.dataset.code;
+      const job = jobs.find(j => j.code === code);
+      if (job) job.highlighted = e.target.checked;
+      const row = e.target.closest('tr');
+      if (e.target.checked) row.classList.add('highlighted');
+      else row.classList.remove('highlighted');
+    });
+  });
+
+  const hiddenCount = jobs.filter(j => j.hidden).length;
+}
+
+function toggleDetail(idx) {
+  const row = document.getElementById('detail-' + idx);
+  if (row) row.classList.toggle('show');
+}
+
+function hideJob(code) {
+  const job = jobs.find(j => j.code === code);
+  if (job) job.hidden = true;
+  applyFilters();
+}
+
+function showAllHidden() {
+  jobs.forEach(j => j.hidden = false);
+  applyFilters();
+}
+
+function updateStats() {}
+
+function updateCharts() {
+  const visible = filtered.filter(j => !j.hidden);
+  const labels = visible.map(j => j.title);
+
+  if (mainVizChart) mainVizChart.destroy();
+  const canvas = document.getElementById('mainVizChart');
+  canvas.parentElement.style.height = Math.max(420, visible.length * 40) + 'px';
+
+  const colors = visible.map(j => j.barSelected ? 'rgba(255,193,7,0.85)' : 'rgba(0,87,184,0.7)');
+  const borderColors = visible.map(j => j.barSelected ? '#e6ac00' : '#003d82');
+
+  mainVizChart = new Chart(canvas, {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [{
+        label: 'Salary Range (Min to Max)',
+        data: visible.map(j => [j.min, j.max]),
+        backgroundColor: colors,
+        borderColor: borderColors,
+        borderWidth: 1,
+        borderRadius: 4
+      }]
+    },
+    options: {
+      indexAxis: 'y',
+      responsive: true,
+      maintainAspectRatio: false,
+      onClick: (evt, elements) => {
+        if (elements.length > 0) {
+          const idx = elements[0].index;
+          const job = visible[idx];
+          job.barSelected = !job.barSelected;
+          const chart = mainVizChart;
+          chart.data.datasets[0].backgroundColor[idx] = job.barSelected ? 'rgba(255,193,7,0.85)' : 'rgba(0,87,184,0.7)';
+          chart.data.datasets[0].borderColor[idx] = job.barSelected ? '#e6ac00' : '#003d82';
+          chart.update('none');
+        }
+      },
+      plugins: {
+        tooltip: {
+          callbacks: {
+            label: ctx => {
+              const [mn, mx] = ctx.raw;
+              return `Range: ${formatMoney(mn)} – ${formatMoney(mx)}`;
+            }
+          }
+        },
+        legend: { display: false },
+        datalabels: {
+          display: true,
+          color: '#1a1a2e',
+          font: { weight: 'bold', size: 11 },
+          formatter: (value) => `${formatMoney(value[0])} – ${formatMoney(value[1])}`,
+          anchor: 'center',
+          align: 'center',
+          clamp: true
+        }
+      },
+      scales: {
+        x: { ticks: { callback: v => '$'+(v/1000).toFixed(0)+'k' }, min: 65000 }
+      }
+    },
+    plugins: [ChartDataLabels]
+  });
+}
+
+function applyFilters() {
+  filtered = jobs.filter(j => true);
+  sortData();
+  renderTable();
+  updateStats();
+  updateCharts();
+  populateCompare();
+}
+
+function sortData() {
+  const key = currentSort.key;
+  const dir = currentSort.dir;
+  filtered.sort((a,b) => {
+    let va = a[key], vb = b[key];
+    if (typeof va === 'string') return dir * va.localeCompare(vb);
+    return dir * (va - vb);
+  });
+}
+
+document.querySelectorAll('th[data-sort]').forEach(th => {
+  th.addEventListener('click', () => {
+    const key = th.dataset.sort;
+    if (currentSort.key === key) currentSort.dir *= -1;
+    else { currentSort.key = key; currentSort.dir = 1; }
+    document.querySelectorAll('th').forEach(t => t.classList.remove('sorted-asc','sorted-desc'));
+    th.classList.add(currentSort.dir === 1 ? 'sorted-asc' : 'sorted-desc');
+    sortData();
+    renderTable();
+  });
+});
+
+document.getElementById('hideEngineersBtn').addEventListener('click', () => {
+  jobs.forEach(j => {
+    if (j.title.toLowerCase().includes('engineer')) j.hidden = true;
+  });
+  applyFilters();
+});
+
+document.getElementById('hideLicensedBtn').addEventListener('click', () => {
+  const licensed = [
+    'senior professional geologist',
+    'professional geologist',
+    'professional engineer',
+    'senior professional engineer',
+    'env site restoration mgr'
+  ];
+  jobs.forEach(j => {
+    const t = j.title.toLowerCase();
+    if (licensed.some(l => t.includes(l))) j.hidden = true;
+  });
+  applyFilters();
+});
+
+document.getElementById('unhideAllBtn').addEventListener('click', showAllHidden);
+
+function populateCompare() {
+  const visibleJobs = jobs.filter(j => !j.hidden);
+  const opts = '<option value="">Select Position</option>' + visibleJobs.map(j => {
+    const idx = jobs.findIndex(x => x.code === j.code);
+    return `<option value="${idx}">${j.code} - ${j.title}</option>`;
+  }).join('');
+  document.getElementById('compare1').innerHTML = opts;
+  document.getElementById('compare2').innerHTML = opts;
+}
+
+function updateCompare() {
+  const i1 = document.getElementById('compare1').value;
+  const i2 = document.getElementById('compare2').value;
+  const res = document.getElementById('compareResult');
+  const chartCont = document.getElementById('compareChartContainer');
+  if (compareChart) { compareChart.destroy(); compareChart = null; }
+
+  if (i1 === '' || i2 === '') { 
+    res.innerHTML = '<p style="color:#666;grid-column:1/-1;">Select two positions to compare base salaries and percent increase.</p>'; 
+    chartCont.style.display = 'none';
+    return; 
+  }
+  const a = jobs[i1], b = jobs[i2];
+  const lower = a.min <= b.min ? a : b;
+  const higher = a.min > b.min ? a : b;
+  const pctIncrease = ((higher.min - lower.min) / lower.min * 100).toFixed(1);
+  const lowerMax = a.max <= b.max ? a : b;
+  const higherMax = a.max > b.max ? a : b;
+  const pctIncreaseMax = ((higherMax.max - lowerMax.max) / lowerMax.max * 100).toFixed(1);
+
+  res.innerHTML = `
+    <div class="compare-card">
+      <strong>${a.code} ${a.title}</strong><br>
+      <span class="min">Min Base: ${formatMoney(a.min)}</span><br>
+      <span class="max">Max: ${formatMoney(a.max)}</span>
+    </div>
+    <div class="compare-card">
+      <strong>${b.code} ${b.title}</strong><br>
+      <span class="min">Min Base: ${formatMoney(b.min)}</span><br>
+      <span class="max">Max: ${formatMoney(b.max)}</span>
+    </div>
+    <div style="grid-column:1/-1; padding:0.75rem; background:#e8f4fd; border-radius:8px; margin-top:0.4rem; font-size:0.9rem;">
+      <strong>Percent Increase in Base Salary:</strong> ${higher.title} is <strong>${pctIncrease}%</strong> higher at the minimum base than ${lower.title}.
+      <br><br>
+      <strong>Percent Increase in Max Salary:</strong> ${higherMax.title} is <strong>${pctIncreaseMax}%</strong> higher at the maximum than ${lowerMax.title}.
+    </div>
+  `;
+
+  chartCont.style.display = 'block';
+  compareChart = new Chart(document.getElementById('compareChart'), {
+    type: 'bar',
+    data: {
+      labels: [a.title, b.title],
+      datasets: [{
+        label: 'Salary Range',
+        data: [[a.min, a.max], [b.min, b.max]],
+        backgroundColor: ['rgba(0,87,184,0.7)', 'rgba(0,166,81,0.7)'],
+        borderRadius: 4
+      }]
+    },
+    options: {
+      indexAxis: 'y',
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        tooltip: {
+          callbacks: {
+            label: ctx => {
+              const [mn, mx] = ctx.raw;
+              return `${formatMoney(mn)} – ${formatMoney(mx)}`;
+            }
+          }
+        },
+        legend: { display: false }
+      },
+      scales: {
+        x: { ticks: { callback: v => '$'+(v/1000).toFixed(0)+'k' } },
+        y: { ticks: { font: { size: 11 } } }
+      }
+    }
+  });
+}
+
+document.getElementById('compare1').addEventListener('change', updateCompare);
+document.getElementById('compare2').addEventListener('change', updateCompare);
+document.getElementById('clearCompare').addEventListener('click', () => {
+  document.getElementById('compare1').value = '';
+  document.getElementById('compare2').value = '';
+  updateCompare();
+});
+
+applyFilters();
+</script>
+</body>
+</html>
