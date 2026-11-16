@@ -208,7 +208,11 @@ const jobs = [
   { code: "0015XX", title: "RER Env Development Review Coordinator", category: "mgmt", min: 81422.15, max: 140115.77,
     description: "Coordinates environmental development review processes within Regulatory & Economic Resources. Oversees and facilitates the review of development applications for environmental compliance, coordinating technical reviews across RER, DERM, and related sections for initial and intermediate development orders.",
     qualifications: "Bachelor's degree in environmental science, engineering, geology, planning or related field preferred. Experience in environmental regulatory review, development permitting, or project coordination within a county or municipal agency.",
-    notes: "Full-time regular position, exempt from classified service. Salary range aligns with section manager level roles in RER environmental functions. Focuses on streamlining and coordinating environmental aspects of land development review." }
+    notes: "Full-time regular position, exempt from classified service. Salary range aligns with section manager level roles in RER environmental functions. Focuses on streamlining and coordinating environmental aspects of land development review." },
+  { code: "100252", title: "RER Business Specialist", category: "mgmt", min: 81422.15, max: 140115.77,
+    description: "Professional administrative and specialized work supporting Regulatory & Economic Resources business operations. Involves analysis, coordination, and support for environmental and economic development programs, process improvements, and interdepartmental collaboration within RER.",
+    qualifications: "Bachelor's degree preferred. Experience in business analysis, regulatory environments, project coordination, or administrative support within a public-sector or environmental agency. Strong analytical and communication skills required.",
+    notes: "Job ID 100252. Open 4/6/2026 – Close 2/11/2027. Full-time regular position in Regulatory & Economic Resources. Salary range matches section-manager level roles. Supports business functions related to environmental permitting, development review, and economic resource management." }
 ];
 
 jobs.forEach(j => { j.mid = Math.round((j.min + j.max) / 2); j.range = j.max - j.min; j.hidden = false; });
