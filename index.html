@@ -325,6 +325,7 @@ function updateCharts() {
       indexAxis: 'y',
       responsive: true,
       maintainAspectRatio: false,
+      animation: false,
       onClick: (evt, elements) => {
         if (elements.length > 0) {
           const idx = elements[0].index;
@@ -423,7 +424,10 @@ document.getElementById('clearHighlightsBtn').addEventListener('click', () => {
   jobs.forEach(j => {
     j.highlighted = false;
     j.barSelected = false;
+    j.hidden = false;
   });
+  if (mainVizChart) mainVizChart.destroy();
+  mainVizChart = null;
   applyFilters();
 });
 
